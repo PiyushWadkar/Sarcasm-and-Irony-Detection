@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}Prediction History | NLP Sarcasm & Irony Detection{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold mb-1 text-light">Prediction History & Audit Log</h2>
+        <p class="text-secondary mb-0">
+            Persisted inference history stored in SQLite database. Search, filter by figurative classification, or export for external reporting.
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/api/export-history" class="btn btn-outline-purple btn-sm" id="btnExportHistory">
+            <i class="bi bi-download me-1"></i> Export Full CSV
+        </a>
+        <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#clearModal">
+            <i class="bi bi-trash3 me-1"></i> Clear History
+        </button>
+    </div>
+</div>
+
+<!-- Filter and Search Bar -->
+<div class="custom-card p-3 mb-4">
+    <div class="row g-2 align-items-center">
+        <div class="col-md-5">
+            <div class="input-group">
+                <span class="input-group-text bg-dark border-purple-subtle text-secondary">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="text" id="historySearchInput" class="form-control bg-dark border-purple-subtle text-light" placeholder="Search sentence keywords or explanations...">
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select id="historyClassFilter" class="form-select bg-dark border-purple-subtle text-light">
+                <option value="all">All Classifications</option>
+                <option value="Sarcastic">Sarcastic</option>
+                <option value="Ironical">Ironical</option>
+                <option value="Non-Sarcastic / Literal">Non-Sarcastic / Literal</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select id="historyLimit" class="form-select bg-dark border-purple-subtle text-light">
+                <option value="25">Show 25</option>
+                <option value="50" selected>Show 50</option>
+                <option value="100">Show 100</option>
+            </select>
+        </div>
+        <div class="col-md-2 text-md-end">
+            <span class="badge bg-secondary-subtle text-secondary" id="historyCountBadge">Loading...</span>
+        </div>
+    </div>
+</div>
+
+<!-- History Table -->
+<div class="custom-card p-4 mb-4">
+    <div class="table-responsive">
+        <table class="table custom-table table-hover mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">ID</th>
+                    <th>Analyzed Sentence</th>
+                    <th>Predicted Class</th>
+                    <th>Confidence</th>
+                    <th>Source</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody id="historyTableBody">
+                <tr>
+                    <td colspan="6" class="text-center text-secondary py-4">
+                        <div class="spinner-border spinner-border-sm text-purple me-2"></div> Loading stored records...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top border-purple-subtle">
+        <div class="text-secondary small" id="paginationInfo">Showing 0 of 0 entries</div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" id="btnPrevPage" disabled>
+                <i class="bi bi-chevron-left me-1"></i> Previous
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" id="btnNextPage" disabled>
+                Next <i class="bi bi-chevron-right ms-1"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Clear Confirmation Modal -->
+<div class="modal fade" id="clearModal" tabindex="-1" aria-labelledby="clearModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-card border-purple-subtle text-light" style="background-color: var(--bg-card);">
+            <div class="modal-header border-bottom border-purple-subtle">
+                <h5 class="modal-title fw-bold text-danger d-flex align-items-center gap-2" id="clearModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Clear Prediction History
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="mb-2">Are you sure you want to permanently clear the prediction history?</p>
+                <p class="text-secondary small mb-0">This will remove all recorded inferences and reset lifetime statistics in SQLite. This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer border-top border-purple-subtle">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger btn-sm" id="btnConfirmClear">
+                    <i class="bi bi-trash3 me-1"></i> Yes, Clear All History
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentPageOffset = 0;
+let currentLimit = 50;
+let currentTotal = 0;
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadHistoryData();
+
+    // Event listeners for filters
+    const searchInput = document.getElementById("historySearchInput");
+    const classFilter = document.getElementById("historyClassFilter");
+    const limitSelect = document.getElementById("historyLimit");
+    const btnPrev = document.getElementById("btnPrevPage");
+    const btnNext = document.getElementById("btnNextPage");
+    const btnConfirmClear = document.getElementById("btnConfirmClear");
+
+    let debounceTimer;
+    searchInput.addEventListener("input", () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            currentPageOffset = 0;
+            loadHistoryData();
+        }, 350);
+    });
+
+    classFilter.addEventListener("change", () => {
+        currentPageOffset = 0;
+        loadHistoryData();
+    });
+
+    limitSelect.addEventListener("change", () => {
+        currentLimit = parseInt(limitSelect.value);
+        currentPageOffset = 0;
+        loadHistoryData();
+    });
+
+    btnPrev.addEventListener("click", () => {
+        if (currentPageOffset > 0) {
+            currentPageOffset = Math.max(0, currentPageOffset - currentLimit);
+            loadHistoryData();
+        }
+    });
+
+    btnNext.addEventListener("click", () => {
+        if (currentPageOffset + currentLimit < currentTotal) {
+            currentPageOffset += currentLimit;
+            loadHistoryData();
+        }
+    });
+
+    // Clear history handler
+    btnConfirmClear.addEventListener("click", async () => {
+        try {
+            const resp = await fetch("/api/history", { method: "DELETE" });
+            const json = await resp.json();
+            if (resp.ok && json.status === "success") {
+                const modalEl = document.getElementById("clearModal");
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+                showToast(json.message, "success");
+                currentPageOffset = 0;
+                loadHistoryData();
+            } else {
+                throw new Error(json.message || "Failed to clear history.");
+            }
+        } catch (e) {
+            showToast(e.message, "danger");
+        }
+    });
+});
+
+async function loadHistoryData() {
+    const tableBody = document.getElementById("historyTableBody");
+    const badge = document.getElementById("historyCountBadge");
+    const searchVal = document.getElementById("historySearchInput").value.trim();
+    const classVal = document.getElementById("historyClassFilter").value;
+    const paginationInfo = document.getElementById("paginationInfo");
+    const btnPrev = document.getElementById("btnPrevPage");
+    const btnNext = document.getElementById("btnNextPage");
+
+    const params = new URLSearchParams({
+        limit: currentLimit,
+        offset: currentPageOffset
+    });
+    if (searchVal) params.append("search", searchVal);
+    if (classVal && classVal !== "all") params.append("class", classVal);
+
+    try {
+        const resp = await fetch(`/api/history?${params.toString()}`);
+        const json = await resp.json();
+
+        if (!resp.ok || json.status !== "success") {
+            throw new Error(json.message || "Error loading history.");
+        }
+
+        currentTotal = json.total;
+        badge.textContent = `${json.total} records`;
+
+        if (json.data.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-secondary py-4">No records found matching your criteria.</td></tr>`;
+            paginationInfo.textContent = `Showing 0 of ${json.total} entries`;
+            btnPrev.disabled = true;
+            btnNext.disabled = true;
+            return;
+        }
+
+        tableBody.innerHTML = "";
+        json.data.forEach(item => {
+            const tr = document.createElement("tr");
+
+            let badgeHtml = `<span class="badge bg-success-subtle text-success border border-success-subtle">Literal</span>`;
+            if (item.predicted_class === "Sarcastic") {
+                badgeHtml = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle">Sarcastic</span>`;
+            } else if (item.predicted_class === "Ironical") {
+                badgeHtml = `<span class="badge bg-warning-subtle text-warning border border-warning-subtle">Ironical</span>`;
+            }
+
+            const formattedDate = new Date(item.created_at).toLocaleString([], {
+                year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+
+            tr.innerHTML = `
+                <td class="text-secondary small font-monospace">#${item.id}</td>
+                <td style="max-width: 380px;">
+                    <div class="fw-medium text-light">${escapeHtml(item.input_text)}</div>
+                    <div class="text-secondary small text-truncate mt-1">${escapeHtml(item.explanation)}</div>
+                </td>
+                <td>${badgeHtml}</td>
+                <td><span class="font-monospace fw-semibold">${Math.round(item.confidence * 100)}%</span></td>
+                <td><span class="badge bg-dark border border-purple-subtle text-secondary">${item.source}</span></td>
+                <td class="text-secondary small text-nowrap">${formattedDate}</td>
+            `;
+            tableBody.appendChild(tr);
+        });
+
+        // Pagination updates
+        const start = currentPageOffset + 1;
+        const end = Math.min(currentPageOffset + currentLimit, json.total);
+        paginationInfo.textContent = `Showing ${start} to ${end} of ${json.total} entries`;
+
+        btnPrev.disabled = currentPageOffset <= 0;
+        btnNext.disabled = end >= json.total;
+
+    } catch (e) {
+        showToast(e.message, "danger");
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return "";
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+</script>
+{% endblock %}

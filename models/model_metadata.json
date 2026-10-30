@@ -1,0 +1,174 @@
+{
+  "benchmark": "SemEval-2018 Task 3 Subtask B",
+  "champion_model_name": "Logistic Regression",
+  "classes": [
+    "Non-Sarcastic / Literal",
+    "Sarcastic",
+    "Ironical"
+  ],
+  "train_samples": 3817,
+  "test_samples": 784,
+  "vocabulary_size": 5000,
+  "random_seed": 42,
+  "models_comparison": {
+    "logistic_regression": {
+      "name": "Multinomial Logistic Regression",
+      "metrics": {
+        "accuracy": 61.35,
+        "macro_precision": 56.7,
+        "macro_recall": 60.64,
+        "macro_f1": 57.95,
+        "weighted_f1": 62.18,
+        "per_class": {
+          "Non-Sarcastic / Literal": {
+            "precision": 75.45,
+            "recall": 62.37,
+            "f1_score": 68.29,
+            "support": 473
+          },
+          "Sarcastic": {
+            "precision": 50.25,
+            "recall": 60.37,
+            "f1_score": 54.85,
+            "support": 164
+          },
+          "Ironical": {
+            "precision": 44.39,
+            "recall": 59.18,
+            "f1_score": 50.73,
+            "support": 147
+          }
+        },
+        "confusion_matrix": {
+          "labels": [
+            "Non-Sarcastic / Literal",
+            "Sarcastic",
+            "Ironical"
+          ],
+          "matrix": [
+            [
+              295,
+              89,
+              89
+            ],
+            [
+              45,
+              99,
+              20
+            ],
+            [
+              51,
+              9,
+              87
+            ]
+          ]
+        }
+      }
+    },
+    "linear_svm": {
+      "name": "Linear SVM (Platt Calibrated)",
+      "metrics": {
+        "accuracy": 62.12,
+        "macro_precision": 59.88,
+        "macro_recall": 46.97,
+        "macro_f1": 45.96,
+        "weighted_f1": 57.42,
+        "per_class": {
+          "Non-Sarcastic / Literal": {
+            "precision": 65.56,
+            "recall": 83.3,
+            "f1_score": 73.37,
+            "support": 473
+          },
+          "Sarcastic": {
+            "precision": 49.08,
+            "recall": 48.78,
+            "f1_score": 48.93,
+            "support": 164
+          },
+          "Ironical": {
+            "precision": 65.0,
+            "recall": 8.84,
+            "f1_score": 15.57,
+            "support": 147
+          }
+        },
+        "confusion_matrix": {
+          "labels": [
+            "Non-Sarcastic / Literal",
+            "Sarcastic",
+            "Ironical"
+          ],
+          "matrix": [
+            [
+              394,
+              72,
+              7
+            ],
+            [
+              84,
+              80,
+              0
+            ],
+            [
+              123,
+              11,
+              13
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "champion_metrics": {
+    "accuracy": 61.35,
+    "macro_precision": 56.7,
+    "macro_recall": 60.64,
+    "macro_f1": 57.95,
+    "weighted_f1": 62.18,
+    "per_class": {
+      "Non-Sarcastic / Literal": {
+        "precision": 75.45,
+        "recall": 62.37,
+        "f1_score": 68.29,
+        "support": 473
+      },
+      "Sarcastic": {
+        "precision": 50.25,
+        "recall": 60.37,
+        "f1_score": 54.85,
+        "support": 164
+      },
+      "Ironical": {
+        "precision": 44.39,
+        "recall": 59.18,
+        "f1_score": 50.73,
+        "support": 147
+      }
+    },
+    "confusion_matrix": {
+      "labels": [
+        "Non-Sarcastic / Literal",
+        "Sarcastic",
+        "Ironical"
+      ],
+      "matrix": [
+        [
+          295,
+          89,
+          89
+        ],
+        [
+          45,
+          99,
+          20
+        ],
+        [
+          51,
+          9,
+          87
+        ]
+      ]
+    }
+  }
+}
